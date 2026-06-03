@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simple Base64 File Utility</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --border: #cbd5e1;
+      --accent: #0f172a;
+      --accent-hover: #334155;
+      --soft: #e2e8f0;
+      --ok-bg: #ecfdf5;
+      --ok-text: #166534;
+      --err-bg: #fef2f2;
+      --err-text: #991b1b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    .hero,
+    .card {
+      background: var(--card);
+      border: 1px solid var(--soft);
+      border-radius: 20px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+    .hero {
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    h1, h2 {
+      margin: 0 0 8px;
+    }
+    p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .chip {
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: #f1f5f9;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+    }
+
+    .card {
+      padding: 24px;
+    }
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      margin: 16px 0 8px;
+    }
+    input[type="text"],
+    textarea,
+    input[type="file"] {
+      width: 100%;
+      font: inherit;
+    }
+
+    input[type="text"],
+    textarea {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      background: #fff;
+    }
+    textarea {
+      min-height: 280px;
+      resize: vertical;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+    }
+
+    input[type="file"] {
+      border: 1px dashed var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      background: #fff;
+    }
+
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 14px;
+      padding: 11px 16px;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .primary:hover { background: var(--accent-hover); }
+
+    .secondary {
+      background: #f1f5f9;
+      color: var(--text);
+    }
+
+    .secondary:hover { background: #e2e8f0; }
+
+    .stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-top: 16px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .message {
+      margin-top: 24px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      border: 1px solid transparent;
+      display: none;
+    }
+    .message.show { display: block; }
+    .message.ok {
+      background: var(--ok-bg);
+      color: var(--ok-text);
+      border-color: #bbf7d0;
+    }
+
+    .message.error {
+      background: var(--err-bg);
+      color: var(--err-text);
+      border-color: #fecaca;
+    }
+
+    .note {
+      margin-top: 12px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>Simple Base64 File Utility</h1>
+      <p>Runs completely in your browser. No server, no upload, no networking required.</p>
+      <div class="chips">
+        <span class="chip">100% client-side</span>
+        <span class="chip">Encode file → Base64</span>
+        <span class="chip">Paste Base64 → Download file</span>
+      </div>
+    </section>
+
+
+    <main class="grid">
+      <section class="card">
+        <h2>1) Encode a file to Base64</h2>
+
+
+        <label for="fileInput">Choose a local file</label>
+        <input id="fileInput" type="file" />
+
+
+        <div class="buttons">
+          <button id="copyBtn" class="primary" type="button">Copy Base64</button>
+          <button id="useInDecoderBtn" class="secondary" type="button">Use in decoder</button>
+        </div>
+
+        <div class="stats">
+          <span>File: <strong id="fileName">—</strong></span>
+          <span>Length: <strong id="base64Length">0</strong></span>
+          <span>Size: <strong id="base64Size">0.0 KB</strong></span>
+        </div>
+
+        <label for="encodedText">Base64 output</label>
+        <textarea id="encodedText" placeholder="When you choose a file, its Base64 text will appear here..."></textarea>
+      </section>
+
+      <section class="card">
+        <h2>2) Download a file from Base64</h2>
+
+        <label for="downloadName">Output filename</label>
+        <input id="downloadName" type="text" value="download.bin" placeholder="example.bin" />
+
+        <label for="decodeInput">Paste Base64 text</label>
+        <textarea id="decodeInput" placeholder="Paste plain Base64 here, or a full data URL such as data:text/plain;base64,SGVsbG8="></textarea>
+
+        <div class="buttons">
+          <button id="downloadBtn" class="primary" type="button">Download file</button>
+          <button id="clearBtn" class="secondary" type="button">Clear all</button>
+        </div>
+
+        <p class="note">Tip: you can paste either plain Base64 or a full data URL.</p>
+      </section>
+    </main>
+
+    <div id="statusBox" class="message" role="status" aria-live="polite"></div>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const encodedText = document.getElementById('encodedText');
+    const fileName = document.getElementById('fileName');
+    const base64Length = document.getElementById('base64Length');
+    const base64Size = document.getElementById('base64Size');
+    const decodeInput = document.getElementById('decodeInput');
+    const downloadName = document.getElementById('downloadName');
+    const statusBox = document.getElementById('statusBox');
+    const copyBtn = document.getElementById('copyBtn');
+    const useInDecoderBtn = document.getElementById('useInDecoderBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const clearBtn = document.getElementById('clearBtn');
+
+    function showMessage(text, isError) {
+      statusBox.textContent = text;
+      statusBox.className = 'message show ' + (isError ? 'error' : 'ok');
+    }
+
+    function clearMessage() {
+      statusBox.textContent = '';
+      statusBox.className = 'message';
+    }
+
+    function updateStats(text) {
+      const clean = (text || '').replace(/\s+/g, '');
+      base64Length.textContent = String(clean.length);
+      base64Size.textContent = (clean.length / 1024).toFixed(1) + ' KB';
+    }
+
+    function normalizeBase64Input(input) {
+      const trimmed = input.trim();
+      if (!trimmed) {
+        return { mime: 'application/octet-stream', base64: '' };
+      }
+
+      const match = trimmed.match(/^data:([^;,]+)?(?:;charset=[^;,]+)?;base64,([\s\S]+)$/i);
+      if (match) {
+        return {
+          mime: match[1] || 'application/octet-stream',
+          base64: match[2].replace(/\s+/g, '')
+        };
+      }
+
+      return {
+        mime: 'application/octet-stream',
+        base64: trimmed.replace(/\s+/g, '')
+      };
+    }
+
+    fileInput.addEventListener('change', function (event) {
+      clearMessage();
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      fileName.textContent = file.name;
+      if (!downloadName.value || downloadName.value === 'download.bin') {
+        downloadName.value = file.name;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function () {
+        const result = String(reader.result || '');
+        const base64 = result.includes(',') ? result.split(',')[1] : result;
+        encodedText.value = base64;
+        updateStats(base64);
+        showMessage('Encoded "' + file.name + '" to Base64 in your browser.', false);
+      };
+      reader.onerror = function () {
+        showMessage('Could not read the file.', true);
+      };
+      reader.readAsDataURL(file);
+    });
+
+    encodedText.addEventListener('input', function () {
+      updateStats(encodedText.value);
+    });
+
+    copyBtn.addEventListener('click', async function () {
+      clearMessage();
+      if (!encodedText.value.trim()) {
+        showMessage('There is no Base64 text to copy yet.', true);
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(encodedText.value);
+        showMessage('Base64 copied to clipboard.', false);
+      } catch (error) {
+        showMessage('Clipboard copy failed. You can still copy manually.', true);
+      }
+    });
+
+    useInDecoderBtn.addEventListener('click', function () {
+      decodeInput.value = encodedText.value;
+      if (fileName.textContent && fileName.textContent !== '—') {
+        downloadName.value = fileName.textContent;
+      }
+      showMessage('Copied the encoded Base64 into the decode box.', false);
+    });
+
+    downloadBtn.addEventListener('click', function () {
+      clearMessage();
+      const parsed = normalizeBase64Input(decodeInput.value);
+      if (!parsed.base64) {
+        showMessage('Paste Base64 text first.', true);
+        return;
+      }
+
+      try {
+        const binary = atob(parsed.base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i += 1) {
+          bytes[i] = binary.charCodeAt(i);
+        }
+
+        const blob = new Blob([bytes], { type: parsed.mime });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = (downloadName.value || 'download.bin').trim() || 'download.bin';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+        showMessage('Downloaded "' + link.download + '" from Base64.', false);
+      } catch (error) {
+        showMessage('That does not look like valid Base64 text.', true);
+      }
+    });
+
+    clearBtn.addEventListener('click', function () {
+      fileInput.value = '';
+      encodedText.value = '';
+      decodeInput.value = '';
+      fileName.textContent = '—';
+      downloadName.value = 'download.bin';
+      updateStats('');
+      clearMessage();
+    });
+
+    updateStats('');
+  </script>
+</body>
