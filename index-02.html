@@ -1,0 +1,731 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simple Base64 File Utility (Chunked)</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --border: #cbd5e1;
+      --accent: #0f172a;
+      --accent-hover: #334155;
+      --soft: #e2e8f0;
+      --ok-bg: #ecfdf5;
+      --ok-text: #166534;
+      --err-bg: #fef2f2;
+      --err-text: #991b1b;
+      --warn-bg: #fffbeb;
+      --warn-text: #92400e;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .hero,
+    .card {
+      background: var(--card);
+      border: 1px solid var(--soft);
+      border-radius: 20px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+
+    .hero {
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    h1, h2, h3, h4 {
+      margin: 0 0 8px;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .chip {
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: #f1f5f9;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 24px;
+    }
+
+    .card {
+      padding: 24px;
+    }
+
+    .subcard {
+      border: 1px solid var(--soft);
+      border-radius: 16px;
+      padding: 16px;
+      background: #ffffff;
+      margin-top: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      margin: 16px 0 8px;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    textarea,
+    input[type="file"] {
+      width: 100%;
+      font: inherit;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    textarea {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      background: #fff;
+    }
+
+    input[type="file"] {
+      border: 1px dashed var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      background: #fff;
+    }
+
+    textarea {
+      min-height: 220px;
+      resize: vertical;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+    }
+
+    .chunk-textarea {
+      min-height: 140px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .row-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    @media (max-width: 700px) {
+      .row,
+      .row-3 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 14px;
+      padding: 11px 16px;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .primary:hover { background: var(--accent-hover); }
+
+    .secondary {
+      background: #f1f5f9;
+      color: var(--text);
+    }
+
+    .secondary:hover { background: #e2e8f0; }
+
+    .stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-top: 16px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .message {
+      margin-top: 24px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      border: 1px solid transparent;
+      display: none;
+    }
+
+    .message.show { display: block; }
+
+    .message.ok {
+      background: var(--ok-bg);
+      color: var(--ok-text);
+      border-color: #bbf7d0;
+    }
+
+    .message.error {
+      background: var(--err-bg);
+      color: var(--err-text);
+      border-color: #fecaca;
+    }
+
+    .message.warn {
+      background: var(--warn-bg);
+      color: var(--warn-text);
+      border-color: #fde68a;
+    }
+
+    .note {
+      margin-top: 12px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .switch {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 14px;
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .switch input {
+      width: auto;
+      transform: scale(1.1);
+    }
+
+    .chunk-list {
+      display: grid;
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    .chunk-item {
+      border: 1px solid var(--soft);
+      border-radius: 14px;
+      padding: 14px;
+      background: #fcfdff;
+    }
+
+    .chunk-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .chunk-meta {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>Simple Base64 File Utility</h1>
+      <p>Runs completely in your browser. No server, no upload, no networking required. Includes optional chunking for clipboard-limited remote sessions.</p>
+      <div class="chips">
+        <span class="chip">100% client-side</span>
+        <span class="chip">Encode file → Base64</span>
+        <span class="chip">Optional chunking</span>
+        <span class="chip">Paste chunks → Rebuild file</span>
+      </div>
+    </section>
+
+    <main class="grid">
+      <section class="card">
+        <h2>1) Encode a file to Base64</h2>
+
+        <label for="fileInput">Choose a local file</label>
+        <input id="fileInput" type="file" />
+
+        <div class="row">
+          <div>
+            <label class="switch" for="enableChunking">
+              <input id="enableChunking" type="checkbox" checked />
+              <span>Split Base64 into chunks</span>
+            </label>
+          </div>
+          <div>
+            <label for="chunkSizeKiB">Chunk size (KiB)</label>
+            <input id="chunkSizeKiB" type="number" min="1" step="1" value="255" />
+          </div>
+        </div>
+
+        <div class="buttons">
+          <button id="copyWholeBtn" class="primary" type="button">Copy whole Base64</button>
+          <button id="useWholeInDecoderBtn" class="secondary" type="button">Use whole text in decoder</button>
+          <button id="useChunksInDecoderBtn" class="secondary" type="button">Use chunks in decoder</button>
+        </div>
+
+        <div class="stats">
+          <span>File: <strong id="fileName">—</strong></span>
+          <span>Length: <strong id="base64Length">0</strong></span>
+          <span>Size: <strong id="base64Size">0.0 KB</strong></span>
+          <span>Chunks: <strong id="chunkCountStat">1</strong></span>
+        </div>
+
+        <label for="encodedText">Whole Base64 output</label>
+        <textarea id="encodedText" placeholder="When you choose a file, its Base64 text will appear here..."></textarea>
+
+        <div class="subcard">
+          <h3>Chunked output</h3>
+          <p class="note">Each chunk is plain pasteable Base64 text. Chunk size is based on Base64 text length, not original file bytes.</p>
+          <div id="chunkList" class="chunk-list"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>2) Decode Base64 into a file</h2>
+
+        <div class="row">
+          <div>
+            <label for="downloadName">Output filename</label>
+            <input id="downloadName" type="text" value="download.bin" placeholder="example.bin" />
+          </div>
+          <div>
+            <label for="decodeMode">Decode mode</label>
+            <select id="decodeMode" style="width: 100%; border: 1px solid var(--border); border-radius: 14px; padding: 12px; font: inherit; background: #fff;">
+              <option value="single">Single Base64 text</option>
+              <option value="chunks">Chunked Base64 text</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="singleDecodeBox">
+          <label for="decodeInput">Paste Base64 text</label>
+          <textarea id="decodeInput" placeholder="Paste plain Base64 here, or a full data URL such as data:text/plain;base64,SGVsbG8="></textarea>
+          <p class="note">Use this for one large Base64 string or a full data URL.</p>
+        </div>
+
+        <div id="chunkDecodeBox" class="hidden">
+          <div class="row-3">
+            <div>
+              <label for="decodeChunkCount">Number of chunks</label>
+              <input id="decodeChunkCount" type="number" min="1" step="1" value="2" />
+            </div>
+            <div>
+              <label for="decodeChunkSizeHint">Chunk size hint (KiB)</label>
+              <input id="decodeChunkSizeHint" type="number" min="1" step="1" value="255" />
+            </div>
+            <div style="display:flex; align-items:end;">
+              <button id="buildChunkInputsBtn" class="secondary" type="button" style="width:100%;">Create chunk fields</button>
+            </div>
+          </div>
+          <p class="note">Paste chunk 1, chunk 2, chunk 3, ... in order. The website will join them before decoding.</p>
+          <div id="decodeChunkList" class="chunk-list"></div>
+        </div>
+
+        <div class="buttons">
+          <button id="downloadBtn" class="primary" type="button">Download file</button>
+          <button id="pasteCombinedPreviewBtn" class="secondary" type="button">Preview combined length</button>
+          <button id="clearBtn" class="secondary" type="button">Clear all</button>
+        </div>
+      </section>
+    </main>
+
+    <div id="statusBox" class="message" role="status" aria-live="polite"></div>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const enableChunking = document.getElementById('enableChunking');
+    const chunkSizeKiB = document.getElementById('chunkSizeKiB');
+    const encodedText = document.getElementById('encodedText');
+    const fileName = document.getElementById('fileName');
+    const base64Length = document.getElementById('base64Length');
+    const base64Size = document.getElementById('base64Size');
+    const chunkCountStat = document.getElementById('chunkCountStat');
+    const chunkList = document.getElementById('chunkList');
+
+    const copyWholeBtn = document.getElementById('copyWholeBtn');
+    const useWholeInDecoderBtn = document.getElementById('useWholeInDecoderBtn');
+    const useChunksInDecoderBtn = document.getElementById('useChunksInDecoderBtn');
+
+    const downloadName = document.getElementById('downloadName');
+    const decodeMode = document.getElementById('decodeMode');
+    const singleDecodeBox = document.getElementById('singleDecodeBox');
+    const chunkDecodeBox = document.getElementById('chunkDecodeBox');
+    const decodeInput = document.getElementById('decodeInput');
+    const decodeChunkCount = document.getElementById('decodeChunkCount');
+    const decodeChunkSizeHint = document.getElementById('decodeChunkSizeHint');
+    const buildChunkInputsBtn = document.getElementById('buildChunkInputsBtn');
+    const decodeChunkList = document.getElementById('decodeChunkList');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const pasteCombinedPreviewBtn = document.getElementById('pasteCombinedPreviewBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const statusBox = document.getElementById('statusBox');
+
+    function showMessage(text, type) {
+      statusBox.textContent = text;
+      statusBox.className = 'message show ' + (type || 'ok');
+    }
+
+    function clearMessage() {
+      statusBox.textContent = '';
+      statusBox.className = 'message';
+    }
+
+    function cleanBase64Text(text) {
+      return String(text || '').replace(/\s+/g, '');
+    }
+
+    function updateStats(text) {
+      const clean = cleanBase64Text(text);
+      base64Length.textContent = String(clean.length);
+      base64Size.textContent = (clean.length / 1024).toFixed(1) + ' KB';
+      const size = getChunkSizeBytes();
+      const chunks = size > 0 ? Math.max(1, Math.ceil(clean.length / size)) : 1;
+      chunkCountStat.textContent = String(chunks);
+    }
+
+    function getChunkSizeBytes() {
+      const value = Number(chunkSizeKiB.value);
+      if (!Number.isFinite(value) || value <= 0) return 255 * 1024;
+      return Math.floor(value * 1024);
+    }
+
+    function splitIntoChunks(base64) {
+      const clean = cleanBase64Text(base64);
+      const size = getChunkSizeBytes();
+      if (!clean) return [];
+      if (!enableChunking.checked) return [clean];
+
+      const out = [];
+      for (let i = 0; i < clean.length; i += size) {
+        out.push(clean.slice(i, i + size));
+      }
+      return out;
+    }
+
+    function renderChunkList(base64) {
+      const chunks = splitIntoChunks(base64);
+      chunkList.innerHTML = '';
+
+      if (!cleanBase64Text(base64)) {
+        chunkCountStat.textContent = '0';
+        return;
+      }
+
+      chunks.forEach(function (chunk, index) {
+        const item = document.createElement('div');
+        item.className = 'chunk-item';
+
+        const head = document.createElement('div');
+        head.className = 'chunk-head';
+
+        const title = document.createElement('div');
+        title.innerHTML = '<strong>Chunk ' + (index + 1) + '</strong><div class="chunk-meta">Length: ' + chunk.length + ' chars</div>';
+
+        const controls = document.createElement('div');
+        controls.className = 'buttons';
+        controls.style.marginTop = '0';
+
+        const copyBtn = document.createElement('button');
+        copyBtn.type = 'button';
+        copyBtn.className = 'secondary';
+        copyBtn.textContent = 'Copy chunk';
+        copyBtn.addEventListener('click', async function () {
+          try {
+            await navigator.clipboard.writeText(chunk);
+            showMessage('Copied chunk ' + (index + 1) + ' to clipboard.', 'ok');
+          } catch (error) {
+            showMessage('Clipboard copy failed for chunk ' + (index + 1) + '.', 'error');
+          }
+        });
+
+        controls.appendChild(copyBtn);
+        head.appendChild(title);
+        head.appendChild(controls);
+
+        const textarea = document.createElement('textarea');
+        textarea.className = 'chunk-textarea';
+        textarea.value = chunk;
+        textarea.readOnly = true;
+
+        item.appendChild(head);
+        item.appendChild(textarea);
+        chunkList.appendChild(item);
+      });
+
+      chunkCountStat.textContent = String(chunks.length);
+    }
+
+    function normalizeBase64Input(input) {
+      const trimmed = String(input || '').trim();
+      if (!trimmed) {
+        return { mime: 'application/octet-stream', base64: '' };
+      }
+
+      const match = trimmed.match(/^data:([^;,]+)?(?:;charset=[^;,]+)?;base64,([\s\S]+)$/i);
+      if (match) {
+        return {
+          mime: match[1] || 'application/octet-stream',
+          base64: cleanBase64Text(match[2])
+        };
+      }
+
+      return {
+        mime: 'application/octet-stream',
+        base64: cleanBase64Text(trimmed)
+      };
+    }
+
+    function buildDecodeChunkInputs() {
+      const count = Math.max(1, Math.floor(Number(decodeChunkCount.value) || 1));
+      const hintKiB = Math.max(1, Math.floor(Number(decodeChunkSizeHint.value) || 255));
+      decodeChunkList.innerHTML = '';
+
+      for (let i = 0; i < count; i += 1) {
+        const item = document.createElement('div');
+        item.className = 'chunk-item';
+
+        const head = document.createElement('div');
+        head.className = 'chunk-head';
+        head.innerHTML = '<div><strong>Paste chunk ' + (i + 1) + '</strong><div class="chunk-meta">Suggested maximum: about ' + hintKiB + ' KiB of Base64 text</div></div>';
+
+        const textarea = document.createElement('textarea');
+        textarea.className = 'chunk-textarea decode-chunk-input';
+        textarea.placeholder = 'Paste chunk ' + (i + 1) + ' here...';
+        textarea.setAttribute('data-index', String(i));
+
+        item.appendChild(head);
+        item.appendChild(textarea);
+        decodeChunkList.appendChild(item);
+      }
+    }
+
+    function getCombinedDecodeText() {
+      if (decodeMode.value === 'single') {
+        return normalizeBase64Input(decodeInput.value);
+      }
+
+      const textareas = Array.from(document.querySelectorAll('.decode-chunk-input'));
+      const joined = textareas.map(function (el) { return cleanBase64Text(el.value); }).join('');
+      return {
+        mime: 'application/octet-stream',
+        base64: joined
+      };
+    }
+
+    function syncDecodeMode() {
+      const chunkMode = decodeMode.value === 'chunks';
+      singleDecodeBox.classList.toggle('hidden', chunkMode);
+      chunkDecodeBox.classList.toggle('hidden', !chunkMode);
+    }
+
+    fileInput.addEventListener('change', function (event) {
+      clearMessage();
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      fileName.textContent = file.name;
+      if (!downloadName.value || downloadName.value === 'download.bin') {
+        downloadName.value = file.name;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function () {
+        const result = String(reader.result || '');
+        const base64 = result.includes(',') ? result.split(',')[1] : result;
+        encodedText.value = base64;
+        updateStats(base64);
+        renderChunkList(base64);
+        showMessage('Encoded "' + file.name + '" to Base64 in your browser.', 'ok');
+      };
+      reader.onerror = function () {
+        showMessage('Could not read the file.', 'error');
+      };
+      reader.readAsDataURL(file);
+    });
+
+    encodedText.addEventListener('input', function () {
+      updateStats(encodedText.value);
+      renderChunkList(encodedText.value);
+    });
+
+    enableChunking.addEventListener('change', function () {
+      updateStats(encodedText.value);
+      renderChunkList(encodedText.value);
+    });
+
+    chunkSizeKiB.addEventListener('input', function () {
+      updateStats(encodedText.value);
+      renderChunkList(encodedText.value);
+      decodeChunkSizeHint.value = String(Math.max(1, Math.floor(Number(chunkSizeKiB.value) || 255)));
+    });
+
+    copyWholeBtn.addEventListener('click', async function () {
+      clearMessage();
+      if (!encodedText.value.trim()) {
+        showMessage('There is no Base64 text to copy yet.', 'error');
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(encodedText.value);
+        showMessage('Whole Base64 copied to clipboard.', 'ok');
+      } catch (error) {
+        showMessage('Clipboard copy failed. You can still copy manually.', 'error');
+      }
+    });
+
+    useWholeInDecoderBtn.addEventListener('click', function () {
+      decodeMode.value = 'single';
+      syncDecodeMode();
+      decodeInput.value = encodedText.value;
+      if (fileName.textContent && fileName.textContent !== '—') {
+        downloadName.value = fileName.textContent;
+      }
+      showMessage('Copied whole Base64 into the single decode box.', 'ok');
+    });
+
+    useChunksInDecoderBtn.addEventListener('click', function () {
+      const chunks = splitIntoChunks(encodedText.value);
+      if (!chunks.length) {
+        showMessage('There is no Base64 text to move into chunk fields yet.', 'error');
+        return;
+      }
+
+      decodeMode.value = 'chunks';
+      syncDecodeMode();
+      decodeChunkCount.value = String(chunks.length);
+      decodeChunkSizeHint.value = String(Math.max(1, Math.floor(Number(chunkSizeKiB.value) || 255)));
+      buildDecodeChunkInputs();
+
+      const inputs = Array.from(document.querySelectorAll('.decode-chunk-input'));
+      chunks.forEach(function (chunk, index) {
+        if (inputs[index]) inputs[index].value = chunk;
+      });
+
+      if (fileName.textContent && fileName.textContent !== '—') {
+        downloadName.value = fileName.textContent;
+      }
+
+      showMessage('Filled decoder chunk fields from the encoded chunk list.', 'ok');
+    });
+
+    decodeMode.addEventListener('change', syncDecodeMode);
+    buildChunkInputsBtn.addEventListener('click', buildDecodeChunkInputs);
+
+    pasteCombinedPreviewBtn.addEventListener('click', function () {
+      const parsed = getCombinedDecodeText();
+      if (!parsed.base64) {
+        showMessage('Nothing to preview yet. Paste a single Base64 string or create chunk fields and paste chunks.', 'warn');
+        return;
+      }
+      showMessage('Combined Base64 length: ' + parsed.base64.length + ' chars (' + (parsed.base64.length / 1024).toFixed(1) + ' KB).', 'ok');
+    });
+
+    downloadBtn.addEventListener('click', function () {
+      clearMessage();
+      const parsed = getCombinedDecodeText();
+      if (!parsed.base64) {
+        showMessage('Paste Base64 text first, or paste chunked Base64 in all chunk fields.', 'error');
+        return;
+      }
+
+      try {
+        const binary = atob(parsed.base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i += 1) {
+          bytes[i] = binary.charCodeAt(i);
+        }
+
+        const blob = new Blob([bytes], { type: parsed.mime || 'application/octet-stream' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = (downloadName.value || 'download.bin').trim() || 'download.bin';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+        showMessage('Downloaded "' + link.download + '" from Base64.', 'ok');
+      } catch (error) {
+        showMessage('That does not look like valid Base64 text, or one of the chunks is incomplete/out of order.', 'error');
+      }
+    });
+
+    clearBtn.addEventListener('click', function () {
+      fileInput.value = '';
+      encodedText.value = '';
+      decodeInput.value = '';
+      fileName.textContent = '—';
+      downloadName.value = 'download.bin';
+      enableChunking.checked = true;
+      chunkSizeKiB.value = '255';
+      decodeChunkCount.value = '2';
+      decodeChunkSizeHint.value = '255';
+      decodeMode.value = 'single';
+      syncDecodeMode();
+      chunkList.innerHTML = '';
+      decodeChunkList.innerHTML = '';
+      updateStats('');
+      clearMessage();
+    });
+
+    syncDecodeMode();
+    buildDecodeChunkInputs();
+    updateStats('');
+  </script>
+</body>
+</html>
